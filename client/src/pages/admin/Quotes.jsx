@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { FileText, X, Send } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { quoteAPI } from '../../services/api'
+import { collection, query, where, getDocs, updateDoc, doc, orderBy } from 'firebase/firestore'
+import { db } from '../../config/firebase'
 import StatusBadge from '../../components/ui/StatusBadge'
 import styles from '../Dashboard.module.css'
 
@@ -16,10 +17,31 @@ export default function AdminQuotes() {
   const loadQuotes = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await quoteAPI.getAll({ status })
-      setQuotes(res.data.quotes)
-    } catch {
+      const quotesRef = collection(db, 'quotes')
+      let q
+      if (status) {
+        q = query(quotesRef, where('status', '==', status))
+      } else {
+        q = query(quotesRef)
+      }
+
+      const querySnapshot = await getDocs(q)
+      const quotesList = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+      
+      // Sort manually since orderBy might require composite indexes if combined with where()
+      quotesList.sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0
+        return dateB - dateA
+      })
+
+      setQuotes(quotesList)
+    } catch (err) {
       toast.error('Failed to load quotes')
+      console.error(err)
     } finally {
       setLoading(false)
     }
@@ -29,21 +51,39 @@ export default function AdminQuotes() {
 
   const openQuote = (q) => {
     setSelected(q)
-    setForm({ quotedPrice: q.quotedPrice || '', currency: q.currency || 'GBP', adminResponse: q.adminResponse || '', status: q.status === 'Pending' ? 'Quoted' : q.status })
+    setForm({ 
+      quotedPrice: q.quotedPrice || '', 
+      currency: q.currency || 'GBP', 
+      adminResponse: q.adminResponse || '', 
+      status: q.status === 'Pending' ? 'Quoted' : q.status 
+    })
   }
 
   const submitResponse = async () => {
     setResponding(true)
     try {
-      await quoteAPI.update(selected._id, form)
+      const quoteRef = doc(db, 'quotes', selected.id)
+      await updateDoc(quoteRef, {
+        quotedPrice: form.quotedPrice,
+        currency: form.currency,
+        adminResponse: form.adminResponse,
+        status: form.status
+      })
       toast.success('Quote response sent')
       setSelected(null)
       loadQuotes()
-    } catch {
+    } catch (err) {
       toast.error('Failed to send response')
+      console.error(err)
     } finally {
       setResponding(false)
     }
+  }
+
+  const formatDate = (timestamp) => {
+    if (!timestamp) return ''
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
   }
 
   return (
@@ -77,12 +117,12 @@ export default function AdminQuotes() {
             </thead>
             <tbody>
               {quotes.map(q => (
-                <tr key={q._id} className={styles.clickableRow} onClick={() => openQuote(q)}>
+                <tr key={q.id} className={styles.clickableRow} onClick={() => openQuote(q)}>
                   <td className={styles.cellPrimary}>{q.fullName}<br /><span className={styles.cellMuted}>{q.email}</span></td>
                   <td>{q.serviceType}</td>
                   <td className={styles.cellMuted}>{q.origin} → {q.destination}</td>
                   <td><StatusBadge status={q.status} /></td>
-                  <td className={styles.cellMuted}>{new Date(q.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</td>
+                  <td className={styles.cellMuted}>{formatDate(q.createdAt)}</td>
                 </tr>
               ))}
             </tbody>

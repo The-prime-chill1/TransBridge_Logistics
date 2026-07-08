@@ -4,7 +4,8 @@ import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { useState } from 'react'
 import { ArrowRight, CheckCircle2 } from 'lucide-react'
-import { quoteAPI } from '../../services/api'
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '../../config/firebase'
 import { useAuth } from '../../context/AuthContext'
 import styles from './GetQuote.module.css'
 
@@ -16,9 +17,9 @@ export default function GetQuote() {
   const [loading, setLoading] = useState(false)
   const { register, handleSubmit, formState: { errors } } = useForm({
     defaultValues: {
-      fullName: user ? `${user.firstName} ${user.lastName}` : '',
+      fullName: user ? user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() : '',
       email: user?.email || '',
-      phone: user?.phone || '',
+      phone: user?.phone || user?.phoneNumber || '',
     },
   })
 
@@ -27,10 +28,15 @@ export default function GetQuote() {
   const onSubmit = async (data) => {
     setLoading(true)
     try {
-      await quoteAPI.create(data)
+      await addDoc(collection(db, 'quotes'), {
+        ...data,
+        createdAt: serverTimestamp(),
+        userId: user?.uid || null,
+        status: 'Pending'
+      })
       setSubmitted(true)
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to submit quote request')
+      toast.error(err.message || 'Failed to submit quote request')
     } finally {
       setLoading(false)
     }

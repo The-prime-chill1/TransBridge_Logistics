@@ -9,9 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@react-three/fiber": "^8.16.1",
     "@react-three/drei": "^9.109.2",
+    "@react-three/fiber": "^8.16.1",
     "axios": "^1.7.2",
+    "firebase": "^12.15.0",
     "framer-motion": "^11.3.2",
     "gsap": "^3.12.5",
     "lenis": "^1.1.9",

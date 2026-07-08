@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import api from '../services/api'
+import { createContext, useContext, useState, useEffect } from 'react'
+import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { auth, getOrCreateUserDoc } from '../config/firebase'
 
 const AuthContext = createContext()
 
@@ -8,44 +9,51 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [initialized, setInitialized] = useState(false)
 
-  const checkAuth = useCallback(async () => {
-    try {
-      const token = localStorage.getItem('tb-token')
-      if (!token) { setLoading(false); setInitialized(true); return }
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`
-      const res = await api.get('/auth/me')
-      setUser(res.data.user)
-    } catch {
-      localStorage.removeItem('tb-token')
-      delete api.defaults.headers.common['Authorization']
-      setUser(null)
-    } finally {
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        try {
+          // Fetch or create the Firestore user doc to get the role
+          const userDoc = await getOrCreateUserDoc(currentUser)
+
+          setUser({
+            uid: currentUser.uid,
+            email: currentUser.email,
+            displayName: currentUser.displayName,
+            phoneNumber: currentUser.phoneNumber,
+            photoURL: currentUser.photoURL,
+            // Role comes from Firestore — 'admin' for the admin email, 'customer' for everyone else
+            role: userDoc.role || 'customer',
+          })
+        } catch (error) {
+          console.error('Error fetching user role from Firestore:', error)
+          // Fallback: set user without role-specific data
+          setUser({
+            uid: currentUser.uid,
+            email: currentUser.email,
+            displayName: currentUser.displayName,
+            phoneNumber: currentUser.phoneNumber,
+            photoURL: currentUser.photoURL,
+            role: 'customer',
+          })
+        }
+      } else {
+        setUser(null)
+      }
       setLoading(false)
       setInitialized(true)
-    }
+    })
+
+    return () => unsubscribe()
   }, [])
 
-  useEffect(() => { checkAuth() }, [checkAuth])
-
-  const login = async (credentials) => {
-    const res = await api.post('/auth/login', credentials)
-    const { token, user } = res.data
-    localStorage.setItem('tb-token', token)
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`
-    setUser(user)
-    return user
-  }
-
-  const register = async (data) => {
-    const res = await api.post('/auth/register', data)
-    return res.data
-  }
-
   const logout = async () => {
-    try { await api.post('/auth/logout') } catch {}
-    localStorage.removeItem('tb-token')
-    delete api.defaults.headers.common['Authorization']
-    setUser(null)
+    try {
+      await signOut(auth)
+      setUser(null)
+    } catch (error) {
+      console.error('Logout error', error)
+    }
   }
 
   const updateUser = (updates) => {
@@ -53,7 +61,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, initialized, login, register, logout, updateUser, checkAuth }}>
+    <AuthContext.Provider value={{ user, loading, initialized, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

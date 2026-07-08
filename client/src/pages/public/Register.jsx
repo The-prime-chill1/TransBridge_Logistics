@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
@@ -6,7 +6,13 @@ import {
   User, Mail, Phone, Lock, Eye, EyeOff, Globe2,
   ShieldCheck, Package, Clock, ArrowRight
 } from 'lucide-react'
-import { authAPI } from '../../services/api'
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithPopup, 
+  signInWithPhoneNumber, 
+  updateProfile 
+} from 'firebase/auth'
+import { auth, googleProvider, setupRecaptcha } from '../../config/firebase'
 import styles from './Auth.module.css'
 
 const COUNTRIES = [
@@ -18,26 +24,70 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
-  const navigate = useNavigate()
+  
+  // Phone Auth State
+  const [usePhoneAuth, setUsePhoneAuth] = useState(false)
+  const [confirmationResult, setConfirmationResult] = useState(null)
+  const [otpCode, setOtpCode] = useState('')
 
+  const navigate = useNavigate()
   const { register, handleSubmit, watch, formState: { errors } } = useForm()
   const password = watch('password')
 
-  const onSubmit = async (data) => {
+  useEffect(() => {
+    // Setup recaptcha for phone auth
+    setupRecaptcha('recaptcha-container')
+  }, [])
+
+  const onEmailSubmit = async (data) => {
     setLoading(true)
     try {
-      const res = await authAPI.register({
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        phone: `${data.dialCode}${data.phone}`,
-        country: data.country,
-        password: data.password,
+      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password)
+      await updateProfile(userCredential.user, {
+        displayName: `${data.firstName} ${data.lastName}`
       })
-      toast.success('Registration successful! Please verify your account.')
-      navigate('/verify-otp', { state: { email: data.email, phone: `${data.dialCode}${data.phone}`, type: 'registration' } })
+      toast.success('Registration successful!')
+      navigate('/dashboard')
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Registration failed')
+      toast.error(err.message || 'Registration failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider)
+      toast.success('Google Sign-In successful!')
+      navigate('/dashboard')
+    } catch (err) {
+      toast.error(err.message || 'Google Sign-In failed')
+    }
+  }
+
+  const handleSendOtp = async (data) => {
+    setLoading(true)
+    try {
+      const phoneNumber = `${data.dialCode}${data.phone}`
+      const appVerifier = window.recaptchaVerifier
+      const confirmation = await signInWithPhoneNumber(auth, phoneNumber, appVerifier)
+      setConfirmationResult(confirmation)
+      toast.success('OTP Sent!')
+    } catch (err) {
+      toast.error(err.message || 'Failed to send OTP')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleVerifyOtp = async () => {
+    setLoading(true)
+    try {
+      await confirmationResult.confirm(otpCode)
+      toast.success('Phone verified successfully!')
+      navigate('/dashboard')
+    } catch (err) {
+      toast.error(err.message || 'Invalid OTP')
     } finally {
       setLoading(false)
     }
@@ -45,6 +95,9 @@ export default function Register() {
 
   return (
     <div className={styles.wrap}>
+      {/* Invisible Recaptcha Container always present on mount */}
+      <div id="recaptcha-container"></div>
+      
       <div className={styles.left}>
         <div className={styles.formBox}>
           <Link to='/' className={styles.logo}>
@@ -53,126 +106,114 @@ export default function Register() {
           </Link>
 
           <h1 className={styles.title}>Create Your Account</h1>
-          <p className={styles.subtitle}>Join TransBridge to start shipping between the UK and Nigeria.</p>
+          <p className={styles.subtitle}>Join TransBridge to start shipping today.</p>
 
-          <form className={styles.form} onSubmit={handleSubmit(onSubmit)} noValidate>
-            <div className={styles.row}>
-              <div className='form-group'>
-                <label className='form-label'>First Name</label>
-                <div className={styles.inputIconWrap}>
-                  <User size={16} className={styles.inputIcon} />
-                  <input
-                    className={`form-input ${errors.firstName ? 'error' : ''}`}
-                    placeholder='John'
-                    {...register('firstName', { required: 'Required' })}
-                  />
-                </div>
-                {errors.firstName && <span className='form-error'>{errors.firstName.message}</span>}
-              </div>
-              <div className='form-group'>
-                <label className='form-label'>Last Name</label>
-                <div className={styles.inputIconWrap}>
-                  <User size={16} className={styles.inputIcon} />
-                  <input
-                    className={`form-input ${errors.lastName ? 'error' : ''}`}
-                    placeholder='Okafor'
-                    {...register('lastName', { required: 'Required' })}
-                  />
-                </div>
-                {errors.lastName && <span className='form-error'>{errors.lastName.message}</span>}
-              </div>
-            </div>
-
-            <div className='form-group'>
-              <label className='form-label'>Email Address</label>
-              <div className={styles.inputIconWrap}>
-                <Mail size={16} className={styles.inputIcon} />
-                <input
-                  type='email'
-                  className={`form-input ${errors.email ? 'error' : ''}`}
-                  placeholder='john@example.com'
-                  {...register('email', {
-                    required: 'Email is required',
-                    pattern: { value: /^\S+@\S+\.\S+$/, message: 'Invalid email address' }
-                  })}
-                />
-              </div>
-              {errors.email && <span className='form-error'>{errors.email.message}</span>}
-            </div>
-
-            <div className='form-group'>
-              <label className='form-label'>Phone Number</label>
-              <div className={styles.row} style={{ gridTemplateColumns: '110px 1fr' }}>
-                <select className='form-input' {...register('dialCode', { required: true })} defaultValue='+44'>
-                  {COUNTRIES.map(c => <option key={c.code} value={c.dial}>{c.dial}</option>)}
-                </select>
-                <div className={styles.inputIconWrap}>
-                  <Phone size={16} className={styles.inputIcon} />
-                  <input
-                    className={`form-input ${errors.phone ? 'error' : ''}`}
-                    placeholder='7934 219309'
-                    {...register('phone', { required: 'Phone number is required' })}
-                  />
-                </div>
-              </div>
-              {errors.phone && <span className='form-error'>{errors.phone.message}</span>}
-            </div>
-
-            <div className='form-group'>
-              <label className='form-label'>Country</label>
-              <div className={styles.inputIconWrap}>
-                <Globe2 size={16} className={styles.inputIcon} />
-                <select className='form-input' {...register('country', { required: true })} defaultValue='United Kingdom'>
-                  {COUNTRIES.map(c => <option key={c.code} value={c.name}>{c.name}</option>)}
-                </select>
-              </div>
-            </div>
-
-            <div className='form-group'>
-              <label className='form-label'>Password</label>
-              <div className={styles.inputIconWrap}>
-                <Lock size={16} className={styles.inputIcon} />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  className={`form-input ${errors.password ? 'error' : ''}`}
-                  placeholder='Create a strong password'
-                  {...register('password', {
-                    required: 'Password is required',
-                    minLength: { value: 8, message: 'Minimum 8 characters' },
-                    pattern: { value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, message: 'Must include upper, lower case and number' }
-                  })}
-                />
-                <button type='button' className={styles.passwordToggle} onClick={() => setShowPassword(v => !v)}>
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-              {errors.password && <span className='form-error'>{errors.password.message}</span>}
-            </div>
-
-            <div className='form-group'>
-              <label className='form-label'>Confirm Password</label>
-              <div className={styles.inputIconWrap}>
-                <Lock size={16} className={styles.inputIcon} />
-                <input
-                  type={showConfirm ? 'text' : 'password'}
-                  className={`form-input ${errors.confirmPassword ? 'error' : ''}`}
-                  placeholder='Re-enter your password'
-                  {...register('confirmPassword', {
-                    required: 'Please confirm your password',
-                    validate: v => v === password || 'Passwords do not match'
-                  })}
-                />
-                <button type='button' className={styles.passwordToggle} onClick={() => setShowConfirm(v => !v)}>
-                  {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-              {errors.confirmPassword && <span className='form-error'>{errors.confirmPassword.message}</span>}
-            </div>
-
-            <button type='submit' className='btn btn-primary btn-lg' disabled={loading} style={{ justifyContent: 'center', marginTop: 8 }}>
-              {loading ? <span className='loading-spinner' /> : <>Create Account <ArrowRight size={18} /></>}
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+            <button 
+              type="button" 
+              className={`btn ${!usePhoneAuth ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => setUsePhoneAuth(false)}
+              style={{ flex: 1, padding: '10px' }}
+            >
+              Email & Google
             </button>
-          </form>
+            <button 
+              type="button" 
+              className={`btn ${usePhoneAuth ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => setUsePhoneAuth(true)}
+              style={{ flex: 1, padding: '10px' }}
+            >
+              Phone OTP
+            </button>
+          </div>
+
+          {!usePhoneAuth ? (
+            <>
+              <button 
+                type="button" 
+                className="btn btn-outline" 
+                style={{ width: '100%', marginBottom: '20px', display: 'flex', justifyContent: 'center', gap: '10px' }}
+                onClick={handleGoogleSignIn}
+              >
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style={{ width: 18 }} />
+                Continue with Google
+              </button>
+              
+              <div style={{ textAlign: 'center', margin: '10px 0', color: '#666' }}>or</div>
+
+              <form className={styles.form} onSubmit={handleSubmit(onEmailSubmit)} noValidate>
+                <div className={styles.row}>
+                  <div className='form-group'>
+                    <label className='form-label'>First Name</label>
+                    <div className={styles.inputIconWrap}>
+                      <User size={16} className={styles.inputIcon} />
+                      <input className={`form-input ${errors.firstName ? 'error' : ''}`} placeholder='John' {...register('firstName', { required: 'Required' })} />
+                    </div>
+                  </div>
+                  <div className='form-group'>
+                    <label className='form-label'>Last Name</label>
+                    <div className={styles.inputIconWrap}>
+                      <User size={16} className={styles.inputIcon} />
+                      <input className={`form-input ${errors.lastName ? 'error' : ''}`} placeholder='Okafor' {...register('lastName', { required: 'Required' })} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className='form-group'>
+                  <label className='form-label'>Email Address</label>
+                  <div className={styles.inputIconWrap}>
+                    <Mail size={16} className={styles.inputIcon} />
+                    <input type='email' className={`form-input ${errors.email ? 'error' : ''}`} placeholder='john@example.com' {...register('email', { required: 'Email is required' })} />
+                  </div>
+                </div>
+
+                <div className='form-group'>
+                  <label className='form-label'>Password</label>
+                  <div className={styles.inputIconWrap}>
+                    <Lock size={16} className={styles.inputIcon} />
+                    <input type={showPassword ? 'text' : 'password'} className={`form-input ${errors.password ? 'error' : ''}`} placeholder='Create a strong password' {...register('password', { required: 'Password is required' })} />
+                    <button type='button' className={styles.passwordToggle} onClick={() => setShowPassword(v => !v)}>
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <button type='submit' className='btn btn-primary btn-lg' disabled={loading} style={{ justifyContent: 'center', marginTop: 8 }}>
+                  {loading ? <span className='loading-spinner' /> : <>Create Account <ArrowRight size={18} /></>}
+                </button>
+              </form>
+            </>
+          ) : (
+            <div className={styles.form}>
+              {!confirmationResult ? (
+                <form onSubmit={handleSubmit(handleSendOtp)}>
+                  <div className='form-group'>
+                    <label className='form-label'>Phone Number</label>
+                    <div className={styles.row} style={{ gridTemplateColumns: '110px 1fr' }}>
+                      <select className='form-input' {...register('dialCode', { required: true })} defaultValue='+234'>
+                        {COUNTRIES.map(c => <option key={c.code} value={c.dial}>{c.dial}</option>)}
+                      </select>
+                      <div className={styles.inputIconWrap}>
+                        <Phone size={16} className={styles.inputIcon} />
+                        <input className={`form-input ${errors.phone ? 'error' : ''}`} placeholder='913 763 2195' {...register('phone', { required: 'Phone is required' })} />
+                      </div>
+                    </div>
+                  </div>
+                  <button type='submit' className='btn btn-primary btn-lg' disabled={loading} style={{ justifyContent: 'center', marginTop: 8 }}>
+                    {loading ? <span className='loading-spinner' /> : <>Send OTP <ArrowRight size={18} /></>}
+                  </button>
+                </form>
+              ) : (
+                <div className='form-group'>
+                  <label className='form-label'>Enter OTP</label>
+                  <input type='text' className='form-input' value={otpCode} onChange={(e) => setOtpCode(e.target.value)} placeholder='242424' />
+                  <button type='button' className='btn btn-primary btn-lg' onClick={handleVerifyOtp} disabled={loading || !otpCode} style={{ justifyContent: 'center', marginTop: 8, width: '100%' }}>
+                    {loading ? <span className='loading-spinner' /> : <>Verify OTP <ArrowRight size={18} /></>}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           <p className={styles.footer}>
             Already have an account? <Link to='/login' className={styles.footerLink}>Sign In</Link>
@@ -197,3 +238,4 @@ export default function Register() {
     </div>
   )
 }
+

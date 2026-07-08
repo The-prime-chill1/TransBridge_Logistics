@@ -5,13 +5,22 @@ import {
   Package, Users, TrendingUp, Clock, Truck,
   HeadphonesIcon, FileText, ArrowUpRight, PoundSterling
 } from 'lucide-react'
+import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore'
+import { db } from '../../config/firebase'
 import StatCard from '../../components/ui/StatCard'
 import StatusBadge from '../../components/ui/StatusBadge'
-import { analyticsAPI } from '../../services/api'
 import styles from '../Dashboard.module.css'
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState(null)
+  const [stats, setStats] = useState({
+    totalCustomers: 0,
+    totalShipments: 0,
+    inTransitShipments: 0,
+    revenue: 0,
+    pendingShipments: 0,
+    pendingQuotes: 0,
+    openTickets: 0,
+  })
   const [recentShipments, setRecentShipments] = useState([])
   const [statusBreakdown, setStatusBreakdown] = useState([])
   const [loading, setLoading] = useState(true)
@@ -23,10 +32,44 @@ export default function AdminDashboard() {
 
   const loadDashboard = async () => {
     try {
-      const res = await analyticsAPI.getDashboard()
-      setStats(res.data.stats)
-      setRecentShipments(res.data.recentShipments)
-      setStatusBreakdown(res.data.statusBreakdown)
+      // Fetch all collections in parallel
+      const [customersSnap, shipmentsSnap, quotesSnap] = await Promise.all([
+        getDocs(query(collection(db, 'users'), where('role', '==', 'customer'))),
+        getDocs(collection(db, 'shipments')),
+        getDocs(query(collection(db, 'quotes'), where('status', '==', 'Pending'))),
+      ])
+
+      const shipments = shipmentsSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+
+      // Compute stats from Firestore data
+      const inTransit = shipments.filter(s => s.status === 'In Transit').length
+      const pending = shipments.filter(s => s.status === 'Pending').length
+
+      // Build status breakdown
+      const statusMap = {}
+      shipments.forEach(s => {
+        statusMap[s.status] = (statusMap[s.status] || 0) + 1
+      })
+      const breakdown = Object.entries(statusMap).map(([status, count]) => ({ _id: status, count }))
+
+      // Recent 5 shipments (sorted by createdAt desc in memory)
+      const sorted = [...shipments].sort((a, b) => {
+        const da = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0)
+        const db_ = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0)
+        return db_ - da
+      }).slice(0, 5)
+
+      setStats({
+        totalCustomers: customersSnap.size,
+        totalShipments: shipmentsSnap.size,
+        inTransitShipments: inTransit,
+        revenue: 0, // Revenue tracking can be added later
+        pendingShipments: pending,
+        pendingQuotes: quotesSnap.size,
+        openTickets: 0,
+      })
+      setRecentShipments(sorted)
+      setStatusBreakdown(breakdown)
     } catch (err) {
       console.error('Failed to load dashboard:', err)
     } finally {
@@ -87,9 +130,9 @@ export default function AdminDashboard() {
               </thead>
               <tbody>
                 {recentShipments.map(s => (
-                  <tr key={s._id} className={styles.clickableRow}>
+                  <tr key={s.id} className={styles.clickableRow}>
                     <td className={styles.cellPrimary}>{s.trackingNumber}</td>
-                    <td>{s.customer?.firstName} {s.customer?.lastName}</td>
+                    <td>{s.customerName || s.customer?.displayName || '—'}</td>
                     <td className={styles.cellMuted}>{s.origin} → {s.destination}</td>
                     <td><StatusBadge status={s.status} /></td>
                   </tr>

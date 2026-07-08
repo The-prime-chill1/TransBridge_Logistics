@@ -3,28 +3,36 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck } from 'lucide-react'
+import { signInWithEmailAndPassword } from 'firebase/auth'
+import { auth } from '../../config/firebase'
 import { useAuth } from '../../context/AuthContext'
 import styles from '../public/Auth.module.css'
 
 export default function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const { login } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
   const { register, handleSubmit, formState: { errors } } = useForm()
 
   const onSubmit = async (data) => {
     setLoading(true)
     try {
-      const user = await login({ identifier: data.identifier, password: data.password })
-      if (user.role !== 'admin' && user.role !== 'staff') {
-        toast.error('This portal is for administrators only')
-        return
-      }
-      toast.success(`Welcome back, ${user.firstName}`)
+      await signInWithEmailAndPassword(auth, data.identifier, data.password)
+      // AuthContext will now fetch the Firestore role.
+      // We do a short wait then check the role via the refreshed user context.
+      // The GuestRoute in App.jsx will redirect to /admin automatically once role='admin' is set.
+      toast.success('Welcome back, Admin!')
       navigate('/admin')
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Login failed')
+      const code = err.code
+      if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+        toast.error('Invalid email or password')
+      } else if (code === 'auth/too-many-requests') {
+        toast.error('Too many failed attempts. Please try again later.')
+      } else {
+        toast.error(err.message || 'Login failed')
+      }
     } finally {
       setLoading(false)
     }
