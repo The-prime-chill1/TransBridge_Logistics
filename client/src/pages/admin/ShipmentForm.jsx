@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { useForm, Controller } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import {
   ArrowLeft, Package, User, MapPin, Weight, Calendar,
   FileText, Image as ImageIcon, Upload, X, Save, Search
 } from 'lucide-react'
-import { shipmentAPI, userAPI } from '../../services/api'
+import {
+  collection, doc, getDoc, getDocs, addDoc, updateDoc,
+  query, where, serverTimestamp
+} from 'firebase/firestore'
+import { db } from '../../config/firebase'
 import ShipmentTimeline from '../../components/ui/ShipmentTimeline'
 import styles from '../Dashboard.module.css'
 import formStyles from './ShipmentForm.module.css'
@@ -17,6 +21,13 @@ const STATUSES = [
 ]
 const PACKAGE_TYPES = ['Document', 'Parcel', 'Pallet', 'Container', 'Personal Effects', 'Commercial Goods']
 const COURIERS = ['Air Freight', 'Sea Freight']
+
+// Generate TB-YYYY-XXXXXX style tracking numbers
+function generateTrackingNumber() {
+  const year = new Date().getFullYear()
+  const rand = Math.floor(100000 + Math.random() * 900000)
+  return `TB-${year}-${rand}`
+}
 
 export default function ShipmentForm() {
   const { id } = useParams()
@@ -32,10 +43,10 @@ export default function ShipmentForm() {
   const [images, setImages] = useState([])
   const [remarks, setRemarks] = useState('')
 
-  const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm({
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm({
     defaultValues: {
       receiverName: '', receiverPhone: '', receiverEmail: '', receiverAddress: '',
-      origin: '', destination: '', currentLocation: '',
+      origin: 'London, UK', destination: 'Lagos, NG', currentLocation: '',
       weight: '', packageType: 'Parcel', courier: 'Air Freight',
       estimatedDelivery: '', notes: '', price: '', currency: 'GBP',
       status: 'Shipment Created',
@@ -51,26 +62,45 @@ export default function ShipmentForm() {
 
   const loadShipment = async () => {
     try {
-      const res = await shipmentAPI.getOne(id)
-      const s = res.data.shipment
+      const docRef = doc(db, 'shipments', id)
+      const docSnap = await getDoc(docRef)
+      if (!docSnap.exists()) {
+        toast.error('Shipment not found')
+        navigate('/admin/shipments')
+        return
+      }
+      const s = { id: docSnap.id, ...docSnap.data() }
       setShipment(s)
-      setSelectedCustomer(s.customer)
-      setValue('receiverName', s.receiver?.name || '')
-      setValue('receiverPhone', s.receiver?.phone || '')
-      setValue('receiverEmail', s.receiver?.email || '')
-      setValue('receiverAddress', s.receiver?.address || '')
+
+      // Try to load customer info from users collection
+      if (s.customerId) {
+        const userSnap = await getDoc(doc(db, 'users', s.customerId))
+        if (userSnap.exists()) {
+          setSelectedCustomer({ id: userSnap.id, ...userSnap.data() })
+        }
+      }
+
+      setValue('receiverName', s.receiverName || s.receiver?.name || '')
+      setValue('receiverPhone', s.receiverPhone || s.receiver?.phone || '')
+      setValue('receiverEmail', s.receiverEmail || s.receiver?.email || '')
+      setValue('receiverAddress', s.receiverAddress || s.receiver?.address || '')
       setValue('origin', s.origin || '')
       setValue('destination', s.destination || '')
       setValue('currentLocation', s.currentLocation || '')
       setValue('weight', s.weight || '')
       setValue('packageType', s.packageType || 'Parcel')
       setValue('courier', s.courier || 'Air Freight')
-      setValue('estimatedDelivery', s.estimatedDelivery ? s.estimatedDelivery.split('T')[0] : '')
+      setValue('estimatedDelivery', s.estimatedDelivery
+        ? (s.estimatedDelivery?.toDate
+            ? s.estimatedDelivery.toDate().toISOString().split('T')[0]
+            : String(s.estimatedDelivery).split('T')[0])
+        : '')
       setValue('notes', s.notes || '')
       setValue('price', s.price || '')
       setValue('currency', s.currency || 'GBP')
       setValue('status', s.status || 'Shipment Created')
     } catch (err) {
+      console.error(err)
       toast.error('Failed to load shipment')
       navigate('/admin/shipments')
     } finally {
@@ -78,13 +108,22 @@ export default function ShipmentForm() {
     }
   }
 
-  const searchCustomers = async (query) => {
-    setCustomerSearch(query)
-    if (query.length < 2) { setCustomerResults([]); return }
+  const searchCustomers = async (searchText) => {
+    setCustomerSearch(searchText)
+    if (searchText.length < 2) { setCustomerResults([]); return }
     try {
-      const res = await userAPI.getAll({ search: query, role: 'customer', limit: 6 })
-      setCustomerResults(res.data.users)
-    } catch {}
+      const snap = await getDocs(query(collection(db, 'users'), where('role', '==', 'customer')))
+      const all = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      const q = searchText.toLowerCase()
+      const results = all.filter(c =>
+        (c.firstName + ' ' + c.lastName).toLowerCase().includes(q) ||
+        c.email?.toLowerCase().includes(q) ||
+        c.phone?.includes(q)
+      ).slice(0, 6)
+      setCustomerResults(results)
+    } catch (err) {
+      console.error(err)
+    }
   }
 
   const onSubmit = async (data) => {
@@ -96,48 +135,67 @@ export default function ShipmentForm() {
     setSaving(true)
     try {
       const payload = {
-        customer: selectedCustomer?._id,
-        receiver: {
-          name: data.receiverName,
-          phone: data.receiverPhone,
-          email: data.receiverEmail,
-          address: data.receiverAddress,
-        },
+        customerId: selectedCustomer?.id || selectedCustomer?.uid || null,
+        receiverName: data.receiverName,
+        receiverPhone: data.receiverPhone,
+        receiverEmail: data.receiverEmail,
+        receiverAddress: data.receiverAddress,
         origin: data.origin,
         destination: data.destination,
-        currentLocation: data.currentLocation,
+        currentLocation: data.currentLocation || data.origin,
         weight: parseFloat(data.weight),
         packageType: data.packageType,
         courier: data.courier,
-        estimatedDelivery: data.estimatedDelivery || undefined,
+        estimatedDelivery: data.estimatedDelivery || null,
         notes: data.notes,
         price: data.price ? parseFloat(data.price) : 0,
         currency: data.currency,
+        updatedAt: serverTimestamp(),
       }
-
-      let savedShipment
 
       if (isEdit) {
-        const res = await shipmentAPI.update(id, { ...payload, status: data.status, remarks })
-        savedShipment = res.data.shipment
+        const prevStatus = shipment?.status
+        const newStatus = data.status
+        const historyEntry = remarks || newStatus !== prevStatus
+          ? {
+              status: newStatus,
+              location: data.currentLocation || data.origin,
+              remarks: remarks || `Status updated to ${newStatus}`,
+              timestamp: new Date().toISOString(),
+            }
+          : null
+
+        const updatePayload = {
+          ...payload,
+          status: newStatus,
+          ...(historyEntry && {
+            trackingHistory: [...(shipment.trackingHistory || []), historyEntry]
+          })
+        }
+
+        await updateDoc(doc(db, 'shipments', id), updatePayload)
         toast.success('Shipment updated successfully')
       } else {
-        const res = await shipmentAPI.create(payload)
-        savedShipment = res.data.shipment
-        toast.success(`Shipment created: ${savedShipment.trackingNumber}`)
-      }
-
-      // Upload any pending images
-      if (images.length > 0) {
-        const formData = new FormData()
-        images.forEach(img => formData.append('images', img.file))
-        formData.append('imageType', 'images')
-        await shipmentAPI.uploadImages(savedShipment._id, formData)
+        const trackingNumber = generateTrackingNumber()
+        await addDoc(collection(db, 'shipments'), {
+          ...payload,
+          trackingNumber,
+          status: 'Shipment Created',
+          trackingHistory: [{
+            status: 'Shipment Created',
+            location: data.origin,
+            remarks: 'Shipment has been created and registered.',
+            timestamp: new Date().toISOString(),
+          }],
+          createdAt: serverTimestamp(),
+        })
+        toast.success(`Shipment created: ${trackingNumber}`)
       }
 
       navigate('/admin/shipments')
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to save shipment')
+      console.error(err)
+      toast.error('Failed to save shipment')
     } finally {
       setSaving(false)
     }
@@ -212,7 +270,7 @@ export default function ShipmentForm() {
                   {customerResults.length > 0 && (
                     <div className={formStyles.customerDropdown}>
                       {customerResults.map(c => (
-                        <div key={c._id} className={formStyles.customerOption} onClick={() => { setSelectedCustomer(c); setCustomerResults([]); setCustomerSearch('') }}>
+                        <div key={c.id} className={formStyles.customerOption} onClick={() => { setSelectedCustomer(c); setCustomerResults([]); setCustomerSearch('') }}>
                           <div className={formStyles.customerAvatar}>{c.firstName?.[0]}{c.lastName?.[0]}</div>
                           <div>
                             <div className={formStyles.customerName}>{c.firstName} {c.lastName}</div>
@@ -339,7 +397,7 @@ export default function ShipmentForm() {
                   <label className='form-label'>Remarks for this update</label>
                   <textarea className='form-input' rows={3} placeholder='e.g. Cleared customs at Lagos hub' value={remarks} onChange={e => setRemarks(e.target.value)} />
                 </div>
-                <p className={formStyles.hint}>Changing status sends an automatic email + SMS notification to the customer.</p>
+                <p className={formStyles.hint}>Remarks are saved to the tracking timeline.</p>
               </div>
             )}
 
@@ -368,7 +426,7 @@ export default function ShipmentForm() {
             {isEdit && shipment && (
               <div className={styles.card}>
                 <h3 className={styles.cardTitle}>Tracking Timeline</h3>
-                <ShipmentTimeline history={shipment.trackingHistory} currentStatus={watchedStatus} />
+                <ShipmentTimeline history={shipment.trackingHistory || []} currentStatus={watchedStatus} />
               </div>
             )}
 

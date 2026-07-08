@@ -1,49 +1,18 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react'
-import { io } from 'socket.io-client'
-import { useAuth } from './AuthContext'
+import { createContext, useContext } from 'react'
 
-const SocketContext = createContext()
+// WebSocket/Socket.io has been disabled — real-time updates are handled
+// via Firebase Firestore onSnapshot listeners instead.
+const SocketContext = createContext({
+  socket: null,
+  connected: false,
+  on: () => {},
+  off: () => {},
+  emit: () => {},
+})
 
 export function SocketProvider({ children }) {
-  const { user } = useAuth()
-  const socketRef = useRef(null)
-  const [connected, setConnected] = useState(false)
-
-  useEffect(() => {
-    if (!user) {
-      if (socketRef.current) {
-        socketRef.current.disconnect()
-        socketRef.current = null
-        setConnected(false)
-      }
-      return
-    }
-
-    const token = localStorage.getItem('tb-token')
-    socketRef.current = io(import.meta.env.VITE_API_URL || '', {
-      auth: { token },
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-    })
-
-    socketRef.current.on('connect', () => setConnected(true))
-    socketRef.current.on('disconnect', () => setConnected(false))
-
-    return () => {
-      socketRef.current?.disconnect()
-      socketRef.current = null
-      setConnected(false)
-    }
-  }, [user])
-
-  const on = (event, handler) => socketRef.current?.on(event, handler)
-  const off = (event, handler) => socketRef.current?.off(event, handler)
-  const emit = (event, data) => socketRef.current?.emit(event, data)
-
   return (
-    <SocketContext.Provider value={{ socket: socketRef.current, connected, on, off, emit }}>
+    <SocketContext.Provider value={{ socket: null, connected: false, on: () => {}, off: () => {}, emit: () => {} }}>
       {children}
     </SocketContext.Provider>
   )

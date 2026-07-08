@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Search, Plus, Package, Eye, Pencil, Archive, ChevronLeft, ChevronRight } from 'lucide-react'
+import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore'
 import toast from 'react-hot-toast'
-import { shipmentAPI } from '../../services/api'
+import { db } from '../../config/firebase'
 import StatusBadge from '../../components/ui/StatusBadge'
 import styles from '../Dashboard.module.css'
 
@@ -12,42 +13,72 @@ const STATUSES = [
 ]
 
 export default function AdminShipments() {
+  const [allShipments, setAllShipments] = useState([])
   const [shipments, setShipments] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const [page, setPage] = useState(1)
-  const [pagination, setPagination] = useState({ total: 0, pages: 1 })
+  const [pagination, setPagination] = useState({ total: 0, pages: 1, page: 1 })
   const navigate = useNavigate()
+  const PAGE_SIZE = 15
 
-  const loadShipments = useCallback(async () => {
+  useEffect(() => {
+    document.title = 'Shipments — Admin'
+    loadAll()
+  }, [])
+
+  const loadAll = async () => {
     setLoading(true)
     try {
-      const res = await shipmentAPI.getAll({ search, status, page, limit: 15 })
-      setShipments(res.data.shipments)
-      setPagination(res.data.pagination)
+      const snap = await getDocs(collection(db, 'shipments'))
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      list.sort((a, b) => {
+        const da = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0)
+        const db2 = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0)
+        return db2 - da
+      })
+      setAllShipments(list)
     } catch (err) {
       toast.error('Failed to load shipments')
     } finally {
       setLoading(false)
     }
-  }, [search, status, page])
+  }
 
+  // Filter + paginate in memory
   useEffect(() => {
-    document.title = 'Shipments — Admin'
-    const t = setTimeout(loadShipments, 300)
-    return () => clearTimeout(t)
-  }, [loadShipments])
+    const q = search.toLowerCase()
+    const filtered = allShipments.filter(s => {
+      const matchSearch = !q ||
+        s.trackingNumber?.toLowerCase().includes(q) ||
+        s.origin?.toLowerCase().includes(q) ||
+        s.destination?.toLowerCase().includes(q) ||
+        s.receiverName?.toLowerCase().includes(q)
+      const matchStatus = !status || s.status === status
+      return matchSearch && matchStatus
+    })
+    const pages = Math.max(Math.ceil(filtered.length / PAGE_SIZE), 1)
+    const offset = (page - 1) * PAGE_SIZE
+    setShipments(filtered.slice(offset, offset + PAGE_SIZE))
+    setPagination({ total: filtered.length, pages, page })
+  }, [allShipments, search, status, page])
 
   const handleArchive = async (id, trackingNumber) => {
     if (!confirm(`Archive shipment ${trackingNumber}? This can be restored later.`)) return
     try {
-      await shipmentAPI.delete(id)
+      await deleteDoc(doc(db, 'shipments', id))
       toast.success('Shipment archived')
-      loadShipments()
+      setAllShipments(prev => prev.filter(s => s.id !== id))
     } catch {
       toast.error('Failed to archive shipment')
     }
+  }
+
+  const formatDate = (val) => {
+    if (!val) return '—'
+    const d = val?.toDate ? val.toDate() : new Date(val)
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
   }
 
   return (
@@ -92,7 +123,7 @@ export default function AdminShipments() {
               <thead>
                 <tr>
                   <th>Tracking #</th>
-                  <th>Customer</th>
+                  <th>Receiver</th>
                   <th>Route</th>
                   <th>Courier</th>
                   <th>Status</th>
@@ -102,22 +133,22 @@ export default function AdminShipments() {
               </thead>
               <tbody>
                 {shipments.map(s => (
-                  <tr key={s._id} className={styles.clickableRow} onClick={() => navigate(`/admin/shipments/${s._id}/edit`)}>
+                  <tr key={s.id} className={styles.clickableRow} onClick={() => navigate(`/admin/shipments/${s.id}/edit`)}>
                     <td className={styles.cellPrimary}>{s.trackingNumber}</td>
-                    <td>{s.customer?.firstName} {s.customer?.lastName}<br /><span className={styles.cellMuted}>{s.customer?.email}</span></td>
+                    <td>{s.receiverName || '—'}</td>
                     <td className={styles.cellMuted}>{s.origin} → {s.destination}</td>
                     <td>{s.courier}</td>
                     <td><StatusBadge status={s.status} /></td>
-                    <td className={styles.cellMuted}>{new Date(s.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                    <td className={styles.cellMuted}>{formatDate(s.createdAt)}</td>
                     <td onClick={e => e.stopPropagation()}>
                       <div className={styles.actionsCell}>
                         <Link to={`/track/${s.trackingNumber}`} target='_blank' className={styles.iconBtnSm} title='View public tracking'>
                           <Eye size={14} />
                         </Link>
-                        <Link to={`/admin/shipments/${s._id}/edit`} className={styles.iconBtnSm} title='Edit'>
+                        <Link to={`/admin/shipments/${s.id}/edit`} className={styles.iconBtnSm} title='Edit'>
                           <Pencil size={14} />
                         </Link>
-                        <button className={`${styles.iconBtnSm} ${styles.danger}`} title='Archive' onClick={() => handleArchive(s._id, s.trackingNumber)}>
+                        <button className={`${styles.iconBtnSm} ${styles.danger}`} title='Archive' onClick={() => handleArchive(s.id, s.trackingNumber)}>
                           <Archive size={14} />
                         </button>
                       </div>

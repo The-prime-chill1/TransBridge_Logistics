@@ -2,13 +2,20 @@ import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import { HeadphonesIcon, Plus, X, Send, MessageCircle } from 'lucide-react'
-import { supportAPI } from '../../services/api'
+import {
+  collection, query, where, getDocs, addDoc, doc, getDoc,
+  updateDoc, arrayUnion, serverTimestamp
+} from 'firebase/firestore'
+import { db } from '../../config/firebase'
+import { useAuth } from '../../context/AuthContext'
 import StatusBadge from '../../components/ui/StatusBadge'
 import styles from '../Dashboard.module.css'
 
 const CATEGORIES = ['Shipment Issue', 'Billing', 'Account', 'General Inquiry', 'Complaint', 'Other']
 
+
 export default function CustomerSupport() {
+  const { user } = useAuth()
   const [tickets, setTickets] = useState([])
   const [loading, setLoading] = useState(true)
   const [newModalOpen, setNewModalOpen] = useState(false)
@@ -18,15 +25,22 @@ export default function CustomerSupport() {
   const [creating, setCreating] = useState(false)
   const { register, handleSubmit, reset, formState: { errors } } = useForm()
 
-  useEffect(() => { document.title = 'Support — TransBridge'; loadTickets() }, [])
+  useEffect(() => { document.title = 'Support — TransBridge'; if (user?.uid) loadTickets() }, [user])
 
   const loadTickets = async () => {
     setLoading(true)
     try {
-      const res = await supportAPI.getMy()
-      setTickets(res.data.tickets)
-    } catch {
-      toast.error('Failed to load support tickets')
+      const q = query(collection(db, 'support_tickets'), where('userId', '==', user.uid))
+      const snap = await getDocs(q)
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      list.sort((a, b) => {
+        const da = a.updatedAt?.toDate ? a.updatedAt.toDate() : new Date(a.updatedAt || 0)
+        const db2 = b.updatedAt?.toDate ? b.updatedAt.toDate() : new Date(b.updatedAt || 0)
+        return db2 - da
+      })
+      setTickets(list)
+    } catch (err) {
+      console.error('Failed to load support tickets:', err)
     } finally {
       setLoading(false)
     }
@@ -34,9 +48,9 @@ export default function CustomerSupport() {
 
   const openTicket = async (t) => {
     try {
-      const res = await supportAPI.getOne(t._id)
-      setSelected(res.data.ticket)
-    } catch {
+      const docSnap = await getDoc(doc(db, 'support_tickets', t.id))
+      if (docSnap.exists()) setSelected({ id: docSnap.id, ...docSnap.data() })
+    } catch (err) {
       toast.error('Failed to load ticket')
     }
   }
@@ -44,12 +58,28 @@ export default function CustomerSupport() {
   const createTicket = async (data) => {
     setCreating(true)
     try {
-      await supportAPI.create(data)
+      const ticketNumber = `TKT-${Date.now().toString().slice(-6)}`
+      await addDoc(collection(db, 'support_tickets'), {
+        userId: user.uid,
+        userEmail: user.email,
+        ticketNumber,
+        subject: data.subject,
+        category: data.category,
+        status: 'Open',
+        messages: [{
+          message: data.message,
+          senderRole: 'customer',
+          createdAt: new Date().toISOString(),
+        }],
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
       toast.success('Support ticket created')
       setNewModalOpen(false)
       reset()
       loadTickets()
-    } catch {
+    } catch (err) {
+      console.error(err)
       toast.error('Failed to create ticket')
     } finally {
       setCreating(false)
@@ -60,10 +90,14 @@ export default function CustomerSupport() {
     if (!replyText.trim()) return
     setSending(true)
     try {
-      const res = await supportAPI.reply(selected._id, { message: replyText })
-      setSelected(res.data.ticket)
+      const newMsg = { message: replyText, senderRole: 'customer', createdAt: new Date().toISOString() }
+      await updateDoc(doc(db, 'support_tickets', selected.id), {
+        messages: arrayUnion(newMsg),
+        updatedAt: serverTimestamp(),
+      })
+      setSelected(prev => ({ ...prev, messages: [...(prev.messages || []), newMsg] }))
       setReplyText('')
-    } catch {
+    } catch (err) {
       toast.error('Failed to send message')
     } finally {
       setSending(false)

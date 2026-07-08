@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Bell, CheckCheck, Package, FileText, HeadphonesIcon, ShieldAlert } from 'lucide-react'
-import toast from 'react-hot-toast'
-import { notificationAPI } from '../../services/api'
+import { collection, query, getDocs, updateDoc, doc, writeBatch, orderBy, limit } from 'firebase/firestore'
+import { db } from '../../config/firebase'
 import styles from '../Dashboard.module.css'
 
 const ICONS = {
@@ -21,10 +21,16 @@ export default function AdminNotifications() {
   const load = async () => {
     setLoading(true)
     try {
-      const res = await notificationAPI.getAll({ limit: 50 })
-      setNotifications(res.data.notifications)
-    } catch {
-      toast.error('Failed to load notifications')
+      // Load all notifications (admin sees all)
+      const snap = await getDocs(query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(100)))
+      setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    } catch (err) {
+      console.error('Failed to load notifications:', err)
+      // Fallback without ordering
+      try {
+        const fallback = await getDocs(query(collection(db, 'notifications'), limit(100)))
+        setNotifications(fallback.docs.map(d => ({ id: d.id, ...d.data() })))
+      } catch (e) { console.error(e) }
     } finally {
       setLoading(false)
     }
@@ -32,19 +38,28 @@ export default function AdminNotifications() {
 
   const markAllRead = async () => {
     try {
-      await notificationAPI.markAllRead()
+      const batch = writeBatch(db)
+      notifications.filter(n => !n.isRead).forEach(n => {
+        batch.update(doc(db, 'notifications', n.id), { isRead: true })
+      })
+      await batch.commit()
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
-      toast.success('All marked as read')
-    } catch {
-      toast.error('Failed to update notifications')
+    } catch (err) {
+      console.error(err)
     }
   }
 
   const markRead = async (id) => {
     try {
-      await notificationAPI.markRead(id)
-      setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n))
+      await updateDoc(doc(db, 'notifications', id), { isRead: true })
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n))
     } catch {}
+  }
+
+  const formatDate = (val) => {
+    if (!val) return ''
+    const d = val?.toDate ? val.toDate() : new Date(val)
+    return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
   }
 
   return (
@@ -68,14 +83,9 @@ export default function AdminNotifications() {
               const Icon = ICONS[n.type] || Bell
               return (
                 <div
-                  key={n._id}
-                  onClick={() => !n.isRead && markRead(n._id)}
-                  style={{
-                    display: 'flex', gap: 14, padding: '16px 22px',
-                    borderBottom: '1px solid var(--border-color)',
-                    cursor: n.isRead ? 'default' : 'pointer',
-                    background: n.isRead ? 'transparent' : 'rgba(212,160,23,0.04)',
-                  }}
+                  key={n.id}
+                  onClick={() => !n.isRead && markRead(n.id)}
+                  style={{ display: 'flex', gap: 14, padding: '16px 22px', borderBottom: '1px solid var(--border-color)', cursor: n.isRead ? 'default' : 'pointer', background: n.isRead ? 'transparent' : 'rgba(212,160,23,0.04)' }}
                 >
                   <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(212,160,23,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: 'var(--color-gold-dark)' }}>
                     <Icon size={17} />
@@ -86,9 +96,7 @@ export default function AdminNotifications() {
                       {!n.isRead && <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--color-gold)', flexShrink: 0, marginTop: 5 }} />}
                     </div>
                     <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3 }}>{n.message}</p>
-                    <span style={{ fontSize: 11.5, color: 'var(--text-light)', marginTop: 4, display: 'block' }}>
-                      {new Date(n.createdAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                    </span>
+                    <span style={{ fontSize: 11.5, color: 'var(--text-light)', marginTop: 4, display: 'block' }}>{formatDate(n.createdAt)}</span>
                   </div>
                 </div>
               )

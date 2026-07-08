@@ -1,29 +1,48 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { FileText, Plus } from 'lucide-react'
-import toast from 'react-hot-toast'
-import { quoteAPI } from '../../services/api'
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore'
+import { db } from '../../config/firebase'
+import { useAuth } from '../../context/AuthContext'
 import StatusBadge from '../../components/ui/StatusBadge'
 import styles from '../Dashboard.module.css'
 
 export default function CustomerQuotes() {
+  const { user } = useAuth()
   const [quotes, setQuotes] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     document.title = 'My Quotes — TransBridge'
-    load()
-  }, [])
+    if (user?.uid) load()
+  }, [user])
 
   const load = async () => {
     try {
-      const res = await quoteAPI.getMyQuotes()
-      setQuotes(res.data.quotes)
-    } catch {
-      toast.error('Failed to load quotes')
+      const q = query(
+        collection(db, 'quotes'),
+        where('userId', '==', user.uid)
+      )
+      const snap = await getDocs(q)
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      // Sort by createdAt in memory
+      list.sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0)
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0)
+        return dateB - dateA
+      })
+      setQuotes(list)
+    } catch (err) {
+      console.error('Failed to load quotes:', err)
     } finally {
       setLoading(false)
     }
+  }
+
+  const formatDate = (val) => {
+    if (!val) return '—'
+    const d = val?.toDate ? val.toDate() : new Date(val)
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
   }
 
   return (
@@ -50,12 +69,12 @@ export default function CustomerQuotes() {
             <thead><tr><th>Service</th><th>Route</th><th>Status</th><th>Quoted Price</th><th>Submitted</th></tr></thead>
             <tbody>
               {quotes.map(q => (
-                <tr key={q._id}>
+                <tr key={q.id}>
                   <td className={styles.cellPrimary}>{q.serviceType}</td>
                   <td className={styles.cellMuted}>{q.origin} → {q.destination}</td>
                   <td><StatusBadge status={q.status} /></td>
-                  <td>{q.quotedPrice ? `${q.currency} ${q.quotedPrice}` : '—'}</td>
-                  <td className={styles.cellMuted}>{new Date(q.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</td>
+                  <td>{q.quotedPrice ? `${q.currency || 'GBP'} ${q.quotedPrice}` : '—'}</td>
+                  <td className={styles.cellMuted}>{formatDate(q.createdAt)}</td>
                 </tr>
               ))}
             </tbody>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { TrendingUp, PoundSterling, Package, MapPin } from 'lucide-react'
-import toast from 'react-hot-toast'
-import { analyticsAPI } from '../../services/api'
+import { collection, getDocs } from 'firebase/firestore'
+import { db } from '../../config/firebase'
 import styles from '../Dashboard.module.css'
 
 export default function AdminAnalytics() {
@@ -18,14 +18,53 @@ export default function AdminAnalytics() {
   const load = async () => {
     setLoading(true)
     try {
-      const [revRes, shipRes] = await Promise.all([
-        analyticsAPI.getRevenue({ period }),
-        analyticsAPI.getShipmentStats({ period }),
-      ])
-      setRevenue(revRes.data.revenue)
-      setShipmentData(shipRes.data)
-    } catch {
-      toast.error('Failed to load analytics')
+      const snap = await getDocs(collection(db, 'shipments'))
+      const shipments = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+
+      // Compute stats
+      const totalRevenue = shipments.reduce((sum, s) => sum + (Number(s.price) || 0), 0)
+
+      // Group by date for shipment chart
+      const byDateMap = {}
+      const byStatusMap = {}
+      const byRouteMap = {}
+
+      shipments.forEach(s => {
+        // Date grouping
+        const raw = s.createdAt?.toDate ? s.createdAt.toDate() : new Date(s.createdAt || Date.now())
+        let key
+        if (period === 'daily') key = raw.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+        else if (period === 'monthly') key = raw.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
+        else key = String(raw.getFullYear())
+
+        byDateMap[key] = (byDateMap[key] || 0) + 1
+        byStatusMap[s.status] = (byStatusMap[s.status] || 0) + 1
+        const route = `${s.origin} → ${s.destination}`
+        byRouteMap[route] = (byRouteMap[route] || 0) + 1
+      })
+
+      // Revenue by date
+      const revMap = {}
+      shipments.forEach(s => {
+        const raw = s.createdAt?.toDate ? s.createdAt.toDate() : new Date(s.createdAt || Date.now())
+        let key
+        if (period === 'daily') key = raw.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+        else if (period === 'monthly') key = raw.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
+        else key = String(raw.getFullYear())
+        revMap[key] = (revMap[key] || 0) + (Number(s.price) || 0)
+      })
+
+      const revenueArr = Object.entries(revMap).map(([period, total]) => ({ period, total }))
+      const byDate = Object.entries(byDateMap).map(([date, count]) => ({ date, count }))
+      const byStatus = Object.entries(byStatusMap).map(([status, count]) => ({ status, count }))
+      const topRoutes = Object.entries(byRouteMap)
+        .sort((a, b) => b[1] - a[1]).slice(0, 5)
+        .map(([route, count]) => ({ route, count }))
+
+      setRevenue(revenueArr)
+      setShipmentData({ byDate, byStatus, topRoutes, totalRevenue, totalShipments: shipments.length })
+    } catch (err) {
+      console.error('Failed to load analytics:', err)
     } finally {
       setLoading(false)
     }

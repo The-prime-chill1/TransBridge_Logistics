@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Package, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Package, ChevronLeft, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { shipmentAPI } from '../../services/api'
+import { collection, getDocs, query, where } from 'firebase/firestore'
+import { db } from '../../config/firebase'
+import { useAuth } from '../../context/AuthContext'
 import StatusBadge from '../../components/ui/StatusBadge'
 import styles from '../Dashboard.module.css'
 
 export default function CustomerShipments() {
+  const { user } = useAuth()
   const [shipments, setShipments] = useState([])
   const [loading, setLoading] = useState(true)
   const [status, setStatus] = useState('')
@@ -14,19 +17,47 @@ export default function CustomerShipments() {
   const [pagination, setPagination] = useState({ total: 0, pages: 1 })
 
   const loadShipments = useCallback(async () => {
+    if (!user?.uid) return
     setLoading(true)
     try {
-      const res = await shipmentAPI.getMyShipments({ status, page, limit: 10 })
-      setShipments(res.data.shipments)
-      setPagination(res.data.pagination)
-    } catch {
+      // Query customer shipments
+      let shipmentsQuery = query(
+        collection(db, 'shipments'),
+        where('customerId', '==', user.uid)
+      )
+
+      const snap = await getDocs(shipmentsQuery)
+      let list = snap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+
+      // Apply filtering in memory (simpler than firestore compound queries requiring index)
+      if (status) {
+        list = list.filter(s => s.status === status)
+      }
+
+      // Memory pagination
+      const limit = 10
+      const total = list.length
+      const pages = Math.max(Math.ceil(total / limit), 1)
+      const offset = (page - 1) * limit
+      const paginatedList = list.slice(offset, offset + limit)
+
+      setShipments(paginatedList)
+      setPagination({ total, pages, page })
+    } catch (err) {
+      console.error(err)
       toast.error('Failed to load shipments')
     } finally {
       setLoading(false)
     }
-  }, [status, page])
+  }, [user, status, page])
 
-  useEffect(() => { document.title = 'My Shipments — TransBridge'; loadShipments() }, [loadShipments])
+  useEffect(() => {
+    document.title = 'My Shipments — TransBridge'
+    loadShipments()
+  }, [loadShipments])
 
   return (
     <div>
@@ -63,14 +94,22 @@ export default function CustomerShipments() {
               <thead><tr><th>Tracking #</th><th>Route</th><th>Courier</th><th>Status</th><th>Est. Delivery</th></tr></thead>
               <tbody>
                 {shipments.map(s => (
-                  <tr key={s._id} className={styles.clickableRow}>
+                  <tr key={s.id} className={styles.clickableRow}>
                     <td className={styles.cellPrimary}>
-                      <Link to={`/dashboard/shipments/${s._id}`} style={{ color: 'inherit', textDecoration: 'none' }}>{s.trackingNumber}</Link>
+                      <Link to={`/dashboard/shipments/${s.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>{s.trackingNumber}</Link>
                     </td>
                     <td className={styles.cellMuted}>{s.origin} → {s.destination}</td>
-                    <td>{s.courier}</td>
+                    <td>{s.courier || '—'}</td>
                     <td><StatusBadge status={s.status} /></td>
-                    <td className={styles.cellMuted}>{s.estimatedDelivery ? new Date(s.estimatedDelivery).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'TBD'}</td>
+                    <td className={styles.cellMuted}>
+                      {s.estimatedDelivery 
+                        ? (s.estimatedDelivery.toDate 
+                            ? s.estimatedDelivery.toDate() 
+                            : new Date(s.estimatedDelivery)
+                          ).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+                        : 'TBD'
+                      }
+                    </td>
                   </tr>
                 ))}
               </tbody>

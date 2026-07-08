@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Package, Bell, FileText, ArrowUpRight, Plus, MapPin } from 'lucide-react'
+import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore'
+import { db } from '../../config/firebase'
 import { useAuth } from '../../context/AuthContext'
-import { shipmentAPI, notificationAPI } from '../../services/api'
 import StatusBadge from '../../components/ui/StatusBadge'
 import styles from '../Dashboard.module.css'
 
@@ -15,19 +16,46 @@ export default function CustomerDashboard() {
 
   useEffect(() => {
     document.title = 'Dashboard — TransBridge Logistics'
-    loadData()
-  }, [])
+    if (user?.uid) {
+      loadData()
+    }
+  }, [user])
 
   const loadData = async () => {
     try {
-      const [shipRes, notifRes] = await Promise.all([
-        shipmentAPI.getMyShipments({ limit: 5 }),
-        notificationAPI.getAll({ limit: 5 }),
+      // Query shipments where customerId matches logged in user uid
+      const shipmentsQuery = query(
+        collection(db, 'shipments'),
+        where('customerId', '==', user.uid)
+      )
+
+      // Query notifications where userId matches logged in user uid
+      const notificationsQuery = query(
+        collection(db, 'notifications'),
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'desc'),
+        limit(5)
+      )
+
+      const [shipmentsSnap, notificationsSnap] = await Promise.all([
+        getDocs(shipmentsQuery),
+        getDocs(notificationsQuery).catch(() => ({ docs: [] })) // Safe fallback if notifications query fails (e.g. index building)
       ])
-      setShipments(shipRes.data.shipments)
-      setNotifications(notifRes.data.notifications)
+
+      const fetchedShipments = shipmentsSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+      
+      const fetchedNotifications = notificationsSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+
+      setShipments(fetchedShipments)
+      setNotifications(fetchedNotifications)
     } catch (err) {
-      console.error(err)
+      console.error('Error loading dashboard data:', err)
     } finally {
       setLoading(false)
     }
@@ -42,7 +70,7 @@ export default function CustomerDashboard() {
     <div>
       <div className={styles.pageHead}>
         <div>
-          <h1 className={styles.pageTitle}>Welcome back, {user?.firstName} 👋</h1>
+          <h1 className={styles.pageTitle}>Welcome back, {user?.displayName || user?.email?.split('@')[0]} 👋</h1>
           <p className={styles.pageSub}>Here's an overview of your shipments and account activity.</p>
         </div>
         <Link to='/get-quote' className='btn btn-primary'><Plus size={16} /> Request a Shipment</Link>
@@ -72,12 +100,12 @@ export default function CustomerDashboard() {
           {shipments.length === 0 ? (
             <div className={styles.emptyState} style={{ padding: '40px 20px' }}>
               <Package size={36} className={styles.emptyIcon} />
-              <p>No shipments yet. Get a quote to ship your first package.</p>
+              <p style={{ color: 'var(--text-muted)', fontSize: 13.5 }}>No shipments yet. Get a quote to ship your first package.</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {shipments.map(s => (
-                <Link key={s._id} to={`/dashboard/shipments/${s._id}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 14, background: 'var(--bg-secondary)', borderRadius: 10, border: '1px solid var(--border-color)', textDecoration: 'none' }}>
+              {shipments.slice(0, 5).map(s => (
+                <Link key={s.id} to={`/dashboard/shipments/${s.id}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 14, background: 'var(--bg-secondary)', borderRadius: 10, border: '1px solid var(--border-color)', textDecoration: 'none' }}>
                   <div>
                     <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)' }}>{s.trackingNumber}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{s.origin} → {s.destination}</div>
@@ -99,7 +127,7 @@ export default function CustomerDashboard() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {notifications.map(n => (
-                <div key={n._id} style={{ display: 'flex', gap: 10 }}>
+                <div key={n.id} style={{ display: 'flex', gap: 10 }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: n.isRead ? 'var(--border-strong)' : 'var(--color-gold)', marginTop: 6, flexShrink: 0 }} />
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{n.title}</div>
