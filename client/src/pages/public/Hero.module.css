@@ -3,7 +3,7 @@
   min-height: 100vh;
   display: flex;
   align-items: center;
-  background: var(--gradient-hero);
+  background: #030712;
   overflow: hidden;
   padding-top: var(--nav-height);
 }
@@ -11,8 +11,33 @@
 .bgGradient {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 70% 60% at 70% 40%, rgba(10,29,86,0.4) 0%, rgba(7,18,40,0.95) 75%);
+  background: 
+    linear-gradient(90deg, rgba(3, 7, 18, 0.82) 0%, rgba(3, 7, 18, 0.6) 100%),
+    url('/hero-bg.jpg') no-repeat center center / cover;
+  background-blend-mode: multiply;
   z-index: 1;
+  opacity: 0.95;
+  transition: all var(--transition-base);
+}
+
+@media (max-width: 1024px) {
+  .bgGradient {
+    background: 
+      linear-gradient(180deg, rgba(3, 7, 18, 0.45) 0%, #030712 85%),
+      url('/hero-bg.jpg') no-repeat center center / cover !important;
+    background-blend-mode: multiply !important;
+    opacity: 0.85;
+  }
+}
+
+@media (max-width: 768px) {
+  .bgGradient {
+    background: 
+      linear-gradient(180deg, rgba(3, 7, 18, 0.45) 0%, #030712 90%),
+      url('/hero-bg.jpg') no-repeat center center / cover !important;
+    background-blend-mode: multiply !important;
+    opacity: 0.85;
+  }
 }
 
 .particles {
@@ -151,18 +176,6 @@
 .statNum { font-family: var(--font-display); font-size: 26px; font-weight: 800; color: var(--color-gold); line-height: 1.1; }
 .statLabel { font-size: 11.5px; color: rgba(255,255,255,0.45); letter-spacing: 0.8px; text-transform: uppercase; margin-top: 2px; }
 .statDivider { width: 1px; height: 36px; background: rgba(255,255,255,0.12); }
-
-.iconStrip {
-  position: absolute;
-  bottom: 28px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 18px;
-  z-index: 10;
-  opacity: 0.4;
-}
-.stripIcon { color: var(--color-gold); }
 
 @media (max-width: 1100px) {
   .globeWrap { width: 500px; height: 500px; opacity: 0.5; right: -15%; }

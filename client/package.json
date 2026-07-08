@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "copy-image": "node copy-image.js"
   },
   "dependencies": {
     "@react-three/drei": "^9.109.2",

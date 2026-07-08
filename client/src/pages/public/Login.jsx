@@ -122,8 +122,7 @@ export default function Login() {
             <>
               <button 
                 type="button" 
-                className="btn btn-outline" 
-                style={{ width: '100%', marginBottom: '20px', display: 'flex', justifyContent: 'center', gap: '10px' }}
+                className="btn btn-google" 
                 onClick={handleGoogleSignIn}
               >
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style={{ width: 18 }} />
