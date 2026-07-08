@@ -1,0 +1,56 @@
+.section { background: var(--bg-secondary); }
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: center;
+  margin-top: 48px;
+}
+
+.visual { display: flex; align-items: center; justify-content: center; }
+
+.circle {
+  width: 300px; height: 300px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 2px solid rgba(212,160,23,0.25);
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  box-shadow: var(--shadow-lg);
+}
+
+.circle::before, .circle::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(212,160,23,0.12);
+}
+.circle::before { width: 360px; height: 360px; }
+.circle::after { width: 420px; height: 420px; }
+
+.circleInner { text-align: center; }
+.bigNum { display: block; font-family: var(--font-display); font-size: 46px; font-weight: 900; color: var(--color-gold-dark); }
+[data-theme="dark"] .bigNum { color: var(--color-gold); }
+.bigLabel { display: block; font-size: 12.5px; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; margin-top: 4px; font-family: var(--font-ui); }
+
+.points { display: flex; flex-direction: column; gap: 18px; }
+.point { display: flex; align-items: flex-start; gap: 14px; }
+
+.check {
+  width: 32px; height: 32px; border-radius: 9px;
+  background: rgba(0,135,81,0.12);
+  border: 1px solid rgba(0,135,81,0.25);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-green); flex-shrink: 0;
+}
+
+.pointTitle { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 3px; }
+.pointSub { font-size: 13px; color: var(--text-muted); line-height: 1.6; font-family: var(--font-ui); }
+
+@media (max-width: 900px) {
+  .grid { grid-template-columns: 1fr; gap: 36px; }
+  .circle { width: 220px; height: 220px; }
+  .circle::before { width: 270px; height: 270px; }
+  .circle::after { width: 320px; height: 320px; }
+}

@@ -1,0 +1,56 @@
+.page { background: var(--bg-secondary); min-height: 100vh; }
+.hero { background: var(--gradient-hero); padding: calc(var(--nav-height) + 56px) 0 64px; }
+.heroTitle { font-family: var(--font-display); font-size: clamp(28px,4vw,44px); font-weight: 800; color: #fff; letter-spacing: -1px; margin-bottom: 14px; }
+.heroText { font-size: 15px; color: rgba(255,255,255,0.6); max-width: 480px; line-height: 1.7; font-family: var(--font-ui); }
+
+.layout { display: grid; grid-template-columns: 1.6fr 1fr; gap: 40px; align-items: start; }
+.main { display: flex; flex-direction: column; gap: 40px; }
+
+.category {}
+.categoryTitle { font-family: var(--font-display); font-size: 18px; font-weight: 800; color: var(--text-primary); margin-bottom: 14px; padding-bottom: 12px; border-bottom: 2px solid var(--color-gold); display: inline-block; }
+
+.itemsList { display: flex; flex-direction: column; gap: 8px; }
+
+.item {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.itemOpen { border-color: rgba(212,160,23,0.35); }
+
+.itemBtn {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+}
+.itemBtn:hover { color: var(--color-gold-dark); }
+[data-theme="dark"] .itemBtn:hover { color: var(--color-gold); }
+
+.chevron { flex-shrink: 0; color: var(--text-muted); transition: transform 0.25s; }
+.chevronOpen { transform: rotate(180deg); color: var(--color-gold-dark); }
+[data-theme="dark"] .chevronOpen { color: var(--color-gold); }
+
+.answer { padding: 0 20px 18px; font-size: 13.5px; color: var(--text-muted); line-height: 1.75; font-family: var(--font-ui); }
+
+.sidebar { display: flex; flex-direction: column; gap: 18px; position: sticky; top: calc(var(--nav-height) + 24px); }
+.sideCard { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-xl); padding: 26px; }
+.sideTitle { font-family: var(--font-display); font-size: 17px; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; }
+.sideText { font-size: 13px; color: var(--text-muted); line-height: 1.6; font-family: var(--font-ui); }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { position: static; }
+}

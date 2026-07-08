@@ -1,0 +1,142 @@
+.page { min-height: 100vh; background: var(--bg-secondary); padding-bottom: 80px; }
+
+.header {
+  background: var(--gradient-hero);
+  padding-top: calc(var(--nav-height) + 56px);
+  padding-bottom: 56px;
+}
+
+.headerContent { text-align: center; max-width: 640px; margin: 0 auto; }
+
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(30px, 4vw, 42px);
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -1px;
+  margin-bottom: 12px;
+}
+
+.subtitle {
+  font-size: 15px;
+  color: rgba(255,255,255,0.6);
+  margin-bottom: 32px;
+  font-family: var(--font-ui);
+}
+
+.searchBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: var(--radius-md);
+  padding: 8px 8px 8px 18px;
+  backdrop-filter: blur(10px);
+}
+
+.searchIcon { color: rgba(255,255,255,0.4); flex-shrink: 0; }
+
+.searchBar input {
+  flex: 1;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 15px;
+  padding: 10px 0;
+  font-family: var(--font-body);
+}
+.searchBar input::placeholder { color: rgba(255,255,255,0.35); }
+
+.errorBox {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(220,38,38,0.08);
+  border: 1px solid rgba(220,38,38,0.25);
+  color: #dc2626;
+  padding: 16px 20px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  margin-top: 32px;
+  font-family: var(--font-ui);
+}
+
+.hintBox {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--text-muted);
+}
+.hintIcon { color: var(--border-strong); margin-bottom: 16px; }
+.hintBox p { max-width: 380px; margin: 0 auto; font-size: 14px; line-height: 1.7; font-family: var(--font-ui); }
+
+.resultWrap { margin-top: 32px; display: flex; flex-direction: column; gap: 20px; }
+
+.statusCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+}
+
+.statusHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.trackingLabel { display: block; font-size: 11px; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 4px; font-family: var(--font-ui); }
+.trackingNum { font-family: var(--font-display); font-size: 24px; font-weight: 800; color: var(--text-primary); }
+
+.statusBadge { font-size: 12px; padding: 8px 14px; }
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color);
+}
+
+.infoItem { display: flex; align-items: flex-start; gap: 10px; }
+.infoIcon { color: var(--color-gold-dark); flex-shrink: 0; margin-top: 2px; }
+[data-theme="dark"] .infoIcon { color: var(--color-gold); }
+.infoLabel { display: block; font-size: 11px; color: var(--text-muted); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 2px; font-family: var(--font-ui); }
+.infoValue { display: block; font-size: 14px; font-weight: 600; color: var(--text-primary); }
+
+.bottomGrid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; align-items: start; }
+
+.timelineCard, .imagesCard, .notesCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+
+.cardTitle {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-display);
+  font-size: 15px; font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+}
+
+.sideCol { display: flex; flex-direction: column; gap: 20px; }
+
+.imagesGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.shipmentImg { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border-color); }
+
+.notesText { font-size: 13.5px; color: var(--text-secondary); line-height: 1.7; font-family: var(--font-ui); }
+
+@media (max-width: 900px) {
+  .infoGrid { grid-template-columns: repeat(2, 1fr); }
+  .bottomGrid { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .infoGrid { grid-template-columns: 1fr; }
+  .searchBar { flex-direction: column; align-items: stretch; padding: 12px; }
+  .searchBar input { padding: 6px 0; }
+}

@@ -1,0 +1,83 @@
+.page { background: var(--bg-primary); }
+
+.hero {
+  background: var(--gradient-hero);
+  padding: calc(var(--nav-height) + 64px) 0 72px;
+  text-align: center;
+}
+.heroTitle { font-family: var(--font-display); font-size: clamp(30px,4vw,48px); font-weight: 800; color: #fff; letter-spacing: -1px; margin-bottom: 14px; }
+.heroText { font-size: 16px; color: rgba(255,255,255,0.6); max-width: 500px; margin: 0 auto; line-height: 1.7; font-family: var(--font-ui); }
+
+.plansGrid { display: grid; grid-template-columns: repeat(3,1fr); gap: 22px; margin-bottom: 64px; }
+
+.planCard {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+  transition: all 0.25s;
+}
+.planCard:hover { box-shadow: var(--shadow-lg); transform: translateY(-4px); }
+
+.highlighted {
+  border-color: var(--color-gold) !important;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-gold);
+}
+.highlighted:hover { box-shadow: 0 20px 60px rgba(212,160,23,0.3); }
+
+.planBadge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--gradient-gold);
+  color: var(--color-navy-dark);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 4px 14px;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.planName { font-family: var(--font-display); font-size: 20px; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; }
+.planDesc { font-size: 13.5px; color: var(--text-muted); line-height: 1.6; margin-bottom: 20px; font-family: var(--font-ui); }
+.planPrice { margin-bottom: 22px; }
+.planPriceNum { display: block; font-family: var(--font-display); font-size: 32px; font-weight: 900; color: var(--color-gold-dark); }
+[data-theme="dark"] .planPriceNum { color: var(--color-gold); }
+.planPricePer { font-size: 12px; color: var(--text-muted); }
+
+.planFeatures { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; flex: 1; }
+.planFeature { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--text-secondary); }
+.planCheck { color: var(--color-green); flex-shrink: 0; }
+
+.faqSection { margin-bottom: 40px; }
+.faqGrid { display: grid; grid-template-columns: repeat(2,1fr); gap: 20px; }
+.faqItem { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 24px; }
+.faqQ { font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 10px; font-family: var(--font-display); }
+.faqA { font-size: 13.5px; color: var(--text-muted); line-height: 1.7; font-family: var(--font-ui); }
+
+.customCTA {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: 28px 32px;
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+}
+.customCTAIcon { color: var(--color-gold-dark); flex-shrink: 0; }
+[data-theme="dark"] .customCTAIcon { color: var(--color-gold); }
+.customCTATitle { font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+.customCTAText { font-size: 13px; color: var(--text-muted); font-family: var(--font-ui); }
+.customCTA > a { margin-left: auto; white-space: nowrap; }
+
+@media (max-width: 900px) {
+  .plansGrid { grid-template-columns: 1fr; max-width: 480px; margin-left: auto; margin-right: auto; }
+  .faqGrid { grid-template-columns: 1fr; }
+  .customCTA > a { margin-left: 0; }
+}

@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment variables
+.env
+server/.env
+client/.env
+
+# Build output
+dist/
+build/
+client/dist/
+
+# Uploads (managed by Cloudinary in production)
+server/uploads/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Cache
+.cache/
+.parcel-cache/

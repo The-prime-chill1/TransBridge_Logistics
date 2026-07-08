@@ -1,0 +1,36 @@
+.page { background: var(--bg-secondary); min-height: 100vh; }
+.hero { background: var(--gradient-hero); padding: calc(var(--nav-height) + 56px) 0 64px; }
+.heroTitle { font-family: var(--font-display); font-size: clamp(28px,4vw,44px); font-weight: 800; color: #fff; letter-spacing: -1px; margin-bottom: 14px; }
+.heroText { font-size: 15px; color: rgba(255,255,255,0.6); max-width: 480px; line-height: 1.7; font-family: var(--font-ui); }
+
+.layout { display: grid; grid-template-columns: 1.5fr 1fr; gap: 28px; align-items: start; }
+
+.formCard { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-xl); padding: 36px; }
+
+.section { margin-bottom: 28px; padding-bottom: 28px; border-bottom: 1px solid var(--border-color); }
+.section:last-of-type { border-bottom: none; margin-bottom: 20px; padding-bottom: 0; }
+.sectionTitle { font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 18px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+
+.sidebar { display: flex; flex-direction: column; gap: 18px; }
+.sideCard { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-xl); padding: 26px; }
+.sideTitle { font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 18px; }
+
+.steps { display: flex; flex-direction: column; gap: 14px; }
+.step { display: flex; gap: 12px; align-items: flex-start; }
+.stepNum { width: 26px; height: 26px; border-radius: 8px; background: var(--gradient-gold); color: var(--color-navy-dark); font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.stepText { font-size: 13px; color: var(--text-secondary); line-height: 1.5; font-family: var(--font-ui); }
+
+.contactLink { display: block; font-size: 13.5px; color: var(--text-secondary); text-decoration: none; transition: color 0.2s; }
+.contactLink:hover { color: var(--color-gold-dark); }
+[data-theme="dark"] .contactLink:hover { color: var(--color-gold); }
+
+.successBox { max-width: 500px; margin: 80px auto; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-xl); padding: 48px; text-align: center; }
+.successIcon { width: 72px; height: 72px; background: rgba(0,135,81,0.12); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--color-green); margin: 0 auto 20px; }
+.successTitle { font-family: var(--font-display); font-size: 24px; font-weight: 800; color: var(--text-primary); margin-bottom: 12px; }
+.successText { font-size: 14px; color: var(--text-muted); line-height: 1.7; margin-bottom: 28px; font-family: var(--font-ui); }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .row2 { grid-template-columns: 1fr; }
+}

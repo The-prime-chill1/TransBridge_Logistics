@@ -1,0 +1,176 @@
+.wrap {
+  min-height: 100vh;
+  display: flex;
+  padding-top: var(--nav-height);
+}
+
+.left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2xl);
+  background: var(--bg-primary);
+}
+
+.formBox {
+  width: 100%;
+  max-width: 440px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 32px;
+  text-decoration: none;
+}
+.logoMark {
+  width: 40px; height: 40px;
+  background: linear-gradient(135deg, #D4A017, #e8b82a);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Poppins', sans-serif;
+  font-size: 16px; font-weight: 900; color: #071228;
+}
+.logoText { font-family: 'Poppins', sans-serif; font-size: 16px; font-weight: 800; color: var(--text-primary); }
+.logoAccent { color: var(--color-gold); }
+
+.title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 32px;
+  font-family: var(--font-ui);
+  line-height: 1.6;
+}
+
+.form { display: flex; flex-direction: column; gap: 18px; }
+
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+.inputIconWrap { position: relative; }
+.inputIcon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-light);
+  pointer-events: none;
+}
+.inputIconWrap input,
+.inputIconWrap select { padding-left: 42px !important; }
+
+.passwordToggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-light);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.footer {
+  text-align: center;
+  margin-top: 24px;
+  font-size: 14px;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+}
+.footerLink { color: var(--color-gold-dark); font-weight: 600; text-decoration: none; }
+[data-theme="dark"] .footerLink { color: var(--color-gold); }
+.footerLink:hover { text-decoration: underline; }
+
+.divider { display: flex; align-items: center; gap: 12px; margin: 4px 0; }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border-color); }
+.dividerText { font-size: 12px; color: var(--text-light); }
+
+.forgotLink {
+  text-align: right;
+  font-size: 13px;
+  color: var(--color-gold-dark);
+  font-weight: 600;
+  text-decoration: none;
+}
+[data-theme="dark"] .forgotLink { color: var(--color-gold); }
+.forgotLink:hover { text-decoration: underline; }
+
+.right {
+  flex: 1;
+  background: var(--gradient-hero);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.rightContent {
+  position: relative;
+  z-index: 2;
+  max-width: 420px;
+  padding: 40px;
+  text-align: center;
+}
+
+.rightBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(212,160,23,0.12);
+  border: 1px solid rgba(212,160,23,0.3);
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  color: var(--color-gold);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+  font-family: var(--font-ui);
+  font-weight: 600;
+}
+
+.rightTitle {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 16px;
+  letter-spacing: -0.5px;
+}
+
+.rightText {
+  font-size: 14px;
+  color: rgba(255,255,255,0.6);
+  line-height: 1.7;
+  font-family: var(--font-ui);
+}
+
+.rightStats { display: flex; justify-content: center; gap: 32px; margin-top: 36px; }
+.rightStat { display: flex; flex-direction: column; }
+.rightStatNum { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: var(--color-gold); }
+.rightStatLabel { font-size: 11px; color: rgba(255,255,255,0.4); letter-spacing: 0.5px; text-transform: uppercase; margin-top: 2px; }
+
+.checkmarks { display: flex; flex-direction: column; gap: 12px; margin-top: 32px; text-align: left; }
+.checkmarkItem { display: flex; align-items: center; gap: 10px; color: rgba(255,255,255,0.75); font-size: 13.5px; font-family: var(--font-ui); }
+.checkIcon { color: var(--color-gold); flex-shrink: 0; }
+
+@media (max-width: 1000px) {
+  .right { display: none; }
+  .left { padding: var(--space-xl) var(--space-md); }
+}
+
+@media (max-width: 480px) {
+  .row { grid-template-columns: 1fr; }
+}

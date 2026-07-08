@@ -1,0 +1,99 @@
+.section { background: var(--bg-secondary); }
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 48px;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 28px 22px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s;
+  cursor: pointer;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--gradient-card);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.card:hover {
+  border-color: rgba(212,160,23,0.35);
+  box-shadow: var(--shadow-lg);
+}
+.card:hover::before { opacity: 1; }
+
+.iconWrap {
+  width: 52px; height: 52px;
+  background: rgba(212,160,23,0.1);
+  border: 1px solid rgba(212,160,23,0.2);
+  border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-gold-dark);
+  margin-bottom: 18px;
+  transition: all 0.3s;
+  position: relative;
+  z-index: 1;
+}
+[data-theme="dark"] .iconWrap { color: var(--color-gold); }
+.card:hover .iconWrap { background: var(--gradient-gold); color: var(--color-navy-dark); border-color: transparent; }
+
+.cardTitle {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  position: relative;
+  z-index: 1;
+}
+
+.cardDesc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  font-family: var(--font-ui);
+  position: relative;
+  z-index: 1;
+}
+
+.cardArrow {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 30px; height: 30px;
+  background: rgba(212,160,23,0.1);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-gold-dark);
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: all 0.3s;
+}
+[data-theme="dark"] .cardArrow { color: var(--color-gold); }
+.card:hover .cardArrow { opacity: 1; transform: translateX(0); }
+
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+  .grid { grid-template-columns: 1fr; }
+}
