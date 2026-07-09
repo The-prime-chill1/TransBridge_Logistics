@@ -127,7 +127,7 @@ export default function CustomerSupport() {
             <thead><tr><th>Ticket #</th><th>Subject</th><th>Category</th><th>Status</th><th>Last Updated</th></tr></thead>
             <tbody>
               {tickets.map(t => (
-                <tr key={t._id} className={styles.clickableRow} onClick={() => openTicket(t)}>
+                <tr key={t.id} className={styles.clickableRow} onClick={() => openTicket(t)}>
                   <td className={styles.cellPrimary}>{t.ticketNumber}</td>
                   <td className={styles.cellMuted}>{t.subject}</td>
                   <td>{t.category}</td>

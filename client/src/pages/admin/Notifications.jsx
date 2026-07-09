@@ -21,9 +21,16 @@ export default function AdminNotifications() {
   const load = async () => {
     setLoading(true)
     try {
-      // Load all notifications (admin sees all)
-      const snap = await getDocs(query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(100)))
-      setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+      // Load all notifications (admin sees all) without server-side ordering to avoid index requirement
+      const snap = await getDocs(query(collection(db, 'notifications'), limit(100)))
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      // Sort client-side by createdAt descending (newest first)
+      list.sort((a, b) => {
+        const da = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0)
+        const db = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0)
+        return db - da
+      })
+      setNotifications(list)
     } catch (err) {
       console.error('Failed to load notifications:', err)
       // Fallback without ordering
